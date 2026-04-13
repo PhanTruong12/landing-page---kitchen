@@ -4,6 +4,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+const DEFAULT_APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwjRdrJaW_F42OvGscJz0h-Wjr9QwvgZdmDB71roQP6rg2H9sPGx4gVjXQrucEN5yXkkw/exec";
+
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -47,9 +50,73 @@ export async function POST(req: Request) {
     );
   }
 
-  // Template demo: chưa lưu CSDL, chỉ trả về trạng thái thành công.
-  // Khi triển khai thực tế, bạn có thể tích hợp email/CRM/Zalo OA/Google Sheets...
-  void message;
-  return NextResponse.json({ ok: true }, { status: 200 });
+  const appsScriptUrl =
+    process.env.GOOGLE_APPS_SCRIPT_URL ??
+    process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL ??
+    DEFAULT_APPS_SCRIPT_URL;
+
+  const leadTarget =
+    process.env.SHEETS_LEAD_TARGET ??
+    process.env.NEXT_PUBLIC_SHEETS_LEAD_TARGET ??
+    "website";
+
+  const formBody = new URLSearchParams({
+    target: leadTarget,
+    name: fullName,
+    phone,
+    email,
+    message,
+  });
+
+  try {
+    const upstream = await fetch(appsScriptUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+      body: formBody.toString(),
+      cache: "no-store",
+    });
+
+    const rawText = await upstream.text();
+    let parsed: unknown = null;
+    if (rawText) {
+      try {
+        parsed = JSON.parse(rawText) as unknown;
+      } catch {
+        parsed = null;
+      }
+    }
+
+    if (!upstream.ok) {
+      return NextResponse.json(
+        { ok: false, error: "Google Sheets API trả lỗi." },
+        { status: 502 }
+      );
+    }
+
+    if (isRecord(parsed)) {
+      const okFlag = parsed.ok === true || parsed.success === true;
+      if (!okFlag) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              typeof parsed.error === "string"
+                ? parsed.error
+                : "Không thể lưu dữ liệu lên Google Sheets.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "Không kết nối được tới Google Apps Script." },
+      { status: 502 }
+    );
+  }
 }
 
