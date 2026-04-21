@@ -7,6 +7,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const DEFAULT_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbwjRdrJaW_F42OvGscJz0h-Wjr9QwvgZdmDB71roQP6rg2H9sPGx4gVjXQrucEN5yXkkw/exec";
 
+function normalizeLeadTarget(value: unknown): "website" | "kitchen" | "stairs" {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  const normalized = raw.replace(/[_\s]+/g, "-");
+
+  if (
+    normalized === "kitchen" ||
+    normalized === "kitchenlanding" ||
+    normalized === "kitchen-landing"
+  ) {
+    return "kitchen";
+  }
+
+  if (
+    normalized === "stairs" ||
+    normalized === "stair" ||
+    normalized === "landing" ||
+    normalized === "granite"
+  ) {
+    return "stairs";
+  }
+
+  return "website";
+}
+
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -55,10 +79,9 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL ??
     DEFAULT_APPS_SCRIPT_URL;
 
-  const leadTarget =
-    process.env.SHEETS_LEAD_TARGET ??
-    process.env.NEXT_PUBLIC_SHEETS_LEAD_TARGET ??
-    "website";
+  const envLeadTarget =
+    process.env.SHEETS_LEAD_TARGET ?? process.env.NEXT_PUBLIC_SHEETS_LEAD_TARGET;
+  const leadTarget = normalizeLeadTarget(body.target ?? envLeadTarget ?? "website");
 
   const formBody = new URLSearchParams({
     target: leadTarget,
