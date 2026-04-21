@@ -605,7 +605,7 @@ export default function Page() {
               <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
                 <div className="elevate-soft relative hidden min-h-[320px] overflow-hidden lg:col-span-5 lg:block">
                   <ClickableImage
-                    src="/kitchen5.png"
+                    src="/kitchen2.png"
                     alt="Liên hệ tư vấn bếp"
                     sizes="40vw"
                     imageClassName="object-cover"
